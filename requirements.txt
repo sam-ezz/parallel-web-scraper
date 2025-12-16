@@ -1,3 +1,5 @@
 beautifulsoup4
 requests 
 ddgs
+playwright
+google-api-python-client
