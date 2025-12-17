@@ -48,7 +48,7 @@ def search_and_retrieve(query:str,num_urls_from_search:int = 5,max_workers:int =
         quiet=quiet
     )
 
-    if urls_from_search and len(urls_from_search) > 0:
+    if urls_from_search and isinstance(urls_from_search, list) and len(urls_from_search) > 0:
         if not quiet:print('-'*7,'duckduck go search results','-'*7)
         for i, url in enumerate(urls_from_search):
             if not quiet:print(f"{i+1}. {url}")

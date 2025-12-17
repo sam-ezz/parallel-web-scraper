@@ -5,8 +5,7 @@ def get_keys_bing():
     api_key = os.environ.get("BING_API_KEY")
 
     if not api_key:
-        handle_key_not_found.handle_key_not_found('BING','"https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/create-bing-search-service-resource"')
-        return None
+        handle_key_not_found('BING','"https://learn.microsoft.com/en-us/previous-versions/bing/search-apis/bing-web-search/create-bing-search-service-resource"')
     return api_key
 
 

@@ -3,6 +3,13 @@ import time
 import random
 import requests
 from bs4 import BeautifulSoup
+
+from utils import get_headers,ua
+from proxy import Proxies
+
+proxies = Proxies()
+
+
 def fetch_slow(url: str, timeout: int = 20, quiet: bool = False):
     """
     Fetches a URL using a headless browser (Playwright).
@@ -12,17 +19,18 @@ def fetch_slow(url: str, timeout: int = 20, quiet: bool = False):
     3. Network resilience (waiting for idle state).
     """
 
-    
     try:
+        proxy = proxies.get_proxy()
+        proxy = {"server":proxy} if proxy is not None  else None
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True,
-                                        args=['--disable-http2'] 
+                                        args=['--disable-http2'] ,
                                         )
             
             # Create a context with specific viewport to look like a real desktop user
             context = browser.new_context(
                 viewport={'width': 1920, 'height': 1080},
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36" #set a standard User Agent
+                user_agent= ua.random #set a random User Agent
             )
             
             page = context.new_page()
@@ -60,32 +68,33 @@ def fetch_slow(url: str, timeout: int = 20, quiet: bool = False):
         return {'url': url, 'error': f'Unexpected error: {error_msg}'}
 
 
-
-def fetch_quick(url:str,timeout:int = 10,quiet:bool =False):
+def fetch_quick(url:str,timeout:int = 10,retries:int = 3,quiet:bool =False):
     """Fetches a single URL and parses its content."""
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-        }
-        response = requests.get(url, 
-                                timeout=timeout,
-                                headers=headers,
-                                )
+    for i in range(retries):
+        try:
+            headers = get_headers()
+            proxy = proxies.get_proxy()
+            proxy =  {"http": proxy, "https": proxy} if proxy is not None else None
+            response = requests.get(url, 
+                                    timeout=timeout,
+                                    headers=headers,
+                                    proxies=proxy
+                                    )
+            
+            response.raise_for_status()
+            return response
         
-        response.raise_for_status()
-        return response
-    
-    except requests.exceptions.Timeout:
-        if not quiet: print(f" [Scrape Error] Timeout error for {url}")
-        return {'url': url, 'error': 'Timeout'}
-    
-    except requests.exceptions.RequestException as e:
-        if not quiet: print(f"  [Scrape Error] Request failed for {url}: {e}")
-        return {'url': url, 'error': f'Request failed: {e}'}
-    
-    except Exception as e:
-        if not quiet: print(f"  An unexpected error occurred for {url}: {e}")
-        return {'url': url, 'error': f'Unexpected error: {e}'}
+        except requests.exceptions.Timeout:
+            if not quiet: print(f" [Scrape Error] Timeout error for {url}")
+            if i == retries-1: return {'url': url, 'error': 'Timeout'}
+        
+        except requests.exceptions.RequestException as e:
+            if not quiet: print(f"  [Scrape Error] Request failed for {url}: {e}")
+            if i == retries-1: return {'url': url, 'error': f'Request failed: {e}'}
+        
+        except Exception as e:
+            if not quiet: print(f"  An unexpected error occurred for {url}: {e}")
+            if i == retries-1: return {'url': url, 'error': f'Unexpected error: {e}'}
         
 def parse(url,raw_data):
     soup = BeautifulSoup(raw_data, 'html.parser')
@@ -105,16 +114,13 @@ def fetch_and_parse(url:str,timeout:int = 10,quiet:bool =False,quick:bool = Fals
         if quick: 
             return raw_data  #return errored one 
         else:
-            raw_data = fetch_slow(url,timeout=timeout,quiet=quiet)
-
+            slow_raw_data = fetch_slow(url,timeout=timeout,quiet=quiet)
+            if isinstance(slow_raw_data,dict) and 'error' in slow_raw_data :
+                return slow_raw_data
     else:
         raw_data = raw_data.text    
-    if isinstance(raw_data,dict) and 'error' in raw_data :
-        return raw_data
-    else:
-        data = parse(url,raw_data)
-        return data
 
+    return parse(url,raw_data)
 
 
 

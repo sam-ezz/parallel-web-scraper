@@ -7,9 +7,9 @@ def get_keys_google():
     api_key = os.environ.get("GOOGLE_API_KEY")
     cse_key = os.environ.get("GOOGLE_CSE_ID")
     if not api_key:
-        handle_key_not_found.handle_key_not_found('GOOGLE','https://console.cloud.google.com/marketplace/product/google/customsearch.googleapis.com')
+        handle_key_not_found('GOOGLE','https://console.cloud.google.com/marketplace/product/google/customsearch.googleapis.com')
     if not cse_key:
-        handle_key_not_found.handle_key_not_found('GOOGLE','https://developers.google.com/custom-search/v1/introduction',suffix='_CSE_ID')
+        handle_key_not_found('GOOGLE','https://developers.google.com/custom-search/v1/introduction',suffix='_CSE_ID')
     return api_key,cse_key
  
 
