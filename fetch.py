@@ -1,14 +1,13 @@
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
+from playwright_stealth import Stealth
 import time
 import random
 import requests
 from bs4 import BeautifulSoup
-
 from utils import get_headers,ua
 from proxy import Proxies
 
 proxies = Proxies()
-
 
 def fetch_slow(url: str, timeout: int = 20, quiet: bool = False):
     """
@@ -24,28 +23,49 @@ def fetch_slow(url: str, timeout: int = 20, quiet: bool = False):
         proxy = {"server":proxy} if proxy is not None  else None
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True,
-                                        args=['--disable-http2'] ,
-                                        )
+                                        args=[
+                                        '--disable-http2',
+                                        '--disable-blink-features=AutomationControlled',
+                                        '--no-sandbox', 
+                                        '--disable-setuid-sandbox'
+                                    ])
             
             # Create a context with specific viewport to look like a real desktop user
             context = browser.new_context(
                 viewport={'width': 1920, 'height': 1080},
-                user_agent= ua.random #set a random User Agent
+                user_agent= ua.random, #set a random User Agent
+                locale='en-US',
+                timezone_id='America/New_York',
             )
             
             page = context.new_page()
-            
-            if not quiet: print(f" [Scrape Info] Navigating to {url}...")
-            time.sleep(random.uniform(1, 3))# delay for 
-            page.goto(url, timeout=timeout * 1000) 
-            
-            #Wait for all JS to load
-            try:
-                page.wait_for_load_state('networkidle', timeout=timeout * 1000)
-            except:
-                if not quiet: print(" [Scrape Warning] Network didn't go fully idle, proceeding anyway...")
+            Stealth().apply_stealth_sync(page)
 
-            time.sleep(random.uniform(0.5,2))
+            excluded_resources = ["image", "media", "font", "stylesheet"]
+            def route_intercept(route):
+                if route.request.resource_type in excluded_resources:
+                    route.abort()
+                else:
+                    route.continue_()
+            page.route("**/*", route_intercept)
+
+            if not quiet: print(f" [Scrape Info] Navigating to {url}...")
+
+            try:
+                page.goto(url, timeout=timeout * 1000,wait_until='domcontentloaded') 
+            except PlaywrightTimeout:
+                if not quiet: print(" [Scrape Warning] Initial timeout, retrying...")
+                page.goto(url, timeout=timeout * 1000, wait_until='domcontentloaded')
+            
+            try:
+                page.mouse.move(random.randint(100, 500), random.randint(100, 500))
+                page.mouse.down()
+                time.sleep(random.uniform(0.1, 0.3))
+                page.mouse.up()
+            except:
+                pass
+
+            time.sleep(random.uniform(1,3))
             page.evaluate("window.scrollTo(0, document.body.scrollHeight)") #Scroll to bottom to trigger lazy-loading images/text
             time.sleep(2) #wait for new content to load
 
@@ -68,7 +88,7 @@ def fetch_slow(url: str, timeout: int = 20, quiet: bool = False):
         return {'url': url, 'error': f'Unexpected error: {error_msg}'}
 
 
-def fetch_quick(url:str,timeout:int = 10,retries:int = 3,quiet:bool =False):
+def fetch_quick(url:str,timeout:int = 10,retries:int = 2,quiet:bool =False):
     """Fetches a single URL and parses its content."""
     for i in range(retries):
         try:
@@ -121,5 +141,4 @@ def fetch_and_parse(url:str,timeout:int = 10,quiet:bool =False,quick:bool = Fals
         raw_data = raw_data.text    
 
     return parse(url,raw_data)
-
 

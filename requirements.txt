@@ -4,3 +4,4 @@ ddgs
 playwright
 google-api-python-client
 fake-useragent
+playwright-stealth
