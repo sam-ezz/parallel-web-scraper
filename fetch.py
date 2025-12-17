@@ -114,13 +114,12 @@ def fetch_and_parse(url:str,timeout:int = 10,quiet:bool =False,quick:bool = Fals
         if quick: 
             return raw_data  #return errored one 
         else:
-            slow_raw_data = fetch_slow(url,timeout=timeout,quiet=quiet)
-            if isinstance(slow_raw_data,dict) and 'error' in slow_raw_data :
-                return slow_raw_data
+            raw_data = fetch_slow(url,timeout=timeout,quiet=quiet)
+            if isinstance(raw_data,dict) and 'error' in raw_data :
+                return raw_data
     else:
         raw_data = raw_data.text    
 
     return parse(url,raw_data)
-
 
 

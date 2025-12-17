@@ -6,7 +6,7 @@ import search
 from fetch import fetch_and_parse
 
 def get_search_results(engine,**kwargs):
-    (f"\n--- Performing {engine} Search for: {kwargs.get('query', 'Unknown Query')}")
+    print(f"\n--- Performing {engine} Search for: {kwargs.get('query', 'Unknown Query')}")
     engine_list = ['duckduckgo','google','bing']
     if engine.lower() == 'duckduckgo':    
         return search.duckduckgo_search(**kwargs)
